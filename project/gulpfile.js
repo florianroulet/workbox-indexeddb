@@ -17,7 +17,7 @@ const gulp = require('gulp');
 const del = require('del');
 const runSequence = require('run-sequence');
 // uncomment the line below:
-// const wbBuild = require('workbox-build');
+const wbBuild = require('workbox-build');
 
 gulp.task('clean', () => del(['.tmp', 'build/*', '!build/.git'], {dot: true}));
 
@@ -31,11 +31,32 @@ gulp.task('default', ['clean'], cb => {
   runSequence(
     'copy',
     // uncomment the line below:
-    // 'build-sw',
+    'build-sw',
     cb
   );
 });
 
 gulp.task('watch', function() {
   gulp.watch('app/**/*', ['default']);
+});
+
+gulp.task('build-sw', () => {
+    return wbBuild.injectManifest({
+        swSrc: 'app/src/sw.js',
+        swDest: 'build/service-worker.js',
+        globDirectory: 'build',
+        staticFileGlobs: [
+            'style/main.css',
+            'index.html',
+            'js/idb-promised.js',
+            'js/main.js',
+            'images/**/*.*',
+            'manifest.json'
+        ],
+        templatedUrls: {
+            '/': ['index.html']
+        }
+    }).catch((err) => {
+        console.log('[ERROR] This happened: ' + err);
+    });
 });

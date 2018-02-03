@@ -24,7 +24,7 @@ addEventButton.addEventListener('click', addAndPostEvent);
 
 Notification.requestPermission();
 
-// const dbPromise = createIndexedDB();
+const dbPromise = createIndexedDB();
 
 loadContentNetworkFirst();
 
@@ -32,8 +32,25 @@ function loadContentNetworkFirst() {
   getServerData()
   .then(dataFromNetwork => {
     updateUI(dataFromNetwork);
-  }).catch(err => { // if we can't connect to the server...
+    saveEventDataLocally(dataFromNetwork)
+    .then(() => {
+      setLastUpdated(new Date());
+      messageDataSaved();
+    }).catch(err => {
+      messageSaveError();
+      console.warn(err);
+    });
+  }).catch(err => {
     console.log('Network requests have failed, this is expected if offline');
+    getLocalEventData()
+    .then(offlineData => {
+      if (!offlineData.length) {
+        messageNoData();
+      } else {
+        messageOffline();
+        updateUI(offlineData);
+      }
+    });
   });
 }
 
@@ -58,7 +75,7 @@ function addAndPostEvent(e) {
     note: document.getElementById('note').value
   };
   updateUI([data]);
-  // saveEventDataLocally([data]);
+  saveEventDataLocally([data]);
   const headers = new Headers({'Content-Type': 'application/json'});
   const body = JSON.stringify(data);
   return fetch('api/add', {
@@ -120,3 +137,38 @@ function getLastUpdated() {
 function setLastUpdated(date) {
   localStorage.setItem('lastUpdated', date);
 }
+
+function createIndexedDB() {
+  if (!('indexedDB' in window)) {return null;}
+  return idb.open('dashboardr', 1, function(upgradeDb) {
+      if (!upgradeDb.objectStoreNames.contains('events')) {
+          const eventsOS = upgradeDb.createObjectStore('events', {keyPath: 'id'});
+      }
+  });
+}
+
+function saveEventDataLocally(events) {
+  if (!('indexedDB' in window)) {return null;}
+  return dbPromise.then(db => {
+    const tx = db.transaction('events', 'readwrite');
+    const store = tx.objectStore('events');
+    return Promise.all(events.map(event => store.put(event)))
+      .catch(() => {
+              tx.abort();
+          throw Error('Events were not added to the store');
+      });
+  });
+}
+function getLocalEventData() {
+  if (!('indexedDB' in window)) {return null;}
+    return dbPromise.then(db => {
+      const tx = db.transaction('events', 'readonly');
+      const store = tx.objectStore('events');
+      return store.getAll();
+  });
+}
+
+window.addEventListener('online', () => {
+  container.innerHTML = '';
+  loadContentNetworkFirst();
+});
