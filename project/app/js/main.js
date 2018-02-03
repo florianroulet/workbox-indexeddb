@@ -96,9 +96,35 @@ function updateUI(events) {
            <h4>${event.date}</h4>
            <h4>${event.city}</h4>
            <p>${event.note}</p>
+           <button class="delete raised button ripple" data-id="${event.id}">DELETE</button>
          </div>
        </li>`;
     container.insertAdjacentHTML('beforeend', item);
+  });
+  Array.prototype.forEach.call(document.getElementsByClassName("delete"), deleteBtn => {
+    deleteBtn.addEventListener('click', deleteEvent)
+  });
+}
+
+function deleteFromUI(liCardElement) {
+    liCardElement.remove();
+}
+
+function deleteEvent(e) {
+  e.preventDefault();
+  let id = this.getAttribute("data-id");
+  console.log("deleted id : ", id);
+  const data = {
+      id: id
+  };
+  deleteEventDataLocally(id);
+  deleteFromUI(this.parentElement.parentElement );
+  const headers = new Headers({'Content-Type': 'application/json'});
+  const body = JSON.stringify(data);
+  return fetch('api/delete', {
+      method: 'POST',
+      headers: headers,
+      body: body
   });
 }
 
@@ -159,6 +185,20 @@ function saveEventDataLocally(events) {
       });
   });
 }
+
+function deleteEventDataLocally(eventId) {
+    if (!('indexedDB' in window)) {return null;}
+    return dbPromise.then(db => {
+        const tx = db.transaction('events', 'readwrite');
+        const store = tx.objectStore('events');
+        return store.delete(eventId)
+            .catch(() => {
+                tx.abort();
+                throw Error('Events were not deleted from the store');
+            });
+    });
+}
+
 function getLocalEventData() {
   if (!('indexedDB' in window)) {return null;}
     return dbPromise.then(db => {

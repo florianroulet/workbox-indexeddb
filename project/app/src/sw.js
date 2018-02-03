@@ -33,6 +33,11 @@ workboxSW.router.registerRoute('/api/add',
     workboxSW.strategies.networkOnly({plugins: [bgQueue]}), 'POST'
 );
 
+
+workboxSW.router.registerRoute('/api/delete',
+    workboxSW.strategies.networkOnly({plugins: [bgQueue]}), 'POST'
+);
+
 workboxSW.router.registerRoute('/api/getAll', () => {
     return bgQueue.replayRequests().then(() => {
         return fetch('/api/getAll');
